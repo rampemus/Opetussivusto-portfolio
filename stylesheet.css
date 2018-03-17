@@ -1,0 +1,145 @@
+p {
+	text-indent: 3em;
+	line-height:1.5em;
+	margin-bottom:0px;
+	margin-top:0px;
+	text-align: justify;
+}
+
+p:first-of-type {
+	margin-top: 10px;
+	text-indent: 0px;
+}
+
+canvas + p {
+	margin-top: 10px;
+	text-indent: 0px;
+}
+
+h2 + p {
+	margin-top: 10px;
+	text-indent: 0px;
+}
+
+p:last-of-type {
+	margin-bottom: 10px;
+}
+
+body {
+    font-family:Sans-Serif;
+    margin:0px;
+}
+
+body > header {
+    display:flex;
+    flex-flow:wrap;
+    background-color:#ddd;
+    padding:0px;
+}
+
+body > header > div {
+    flex:1;
+    text-align:center;
+    display:flex;
+    flex-flow:wrap;
+    
+}
+
+body > header > a {
+    flex:0.5;
+}
+
+body > header > div > a {
+    flex:1;
+}
+
+body > header a {
+    text-decoration:none;
+    color:black;
+    display:block;
+    margin-top:0;
+    padding:10px;
+    transition: all 0.1s ease-out;
+}
+
+body > header a:hover {
+    background-color: #eee;
+    transition: all 0.1s ease-out;
+    transform: scale(1.1);
+}
+
+canvas {
+    display:block;
+    margin-left:auto;
+    margin-right:auto;
+}
+
+canvas:focus {
+    outline:none;
+}
+
+#etukiopetus:hover {
+    background-color: #fff;
+    transform: translate(0,0);
+}
+
+#highlighted {
+    background-color:#FFF;
+}
+
+body > div {
+    display:flex;
+    flex-flow: wrap;
+    margin-left:20px;
+    margin-right:20px;
+    margin-top:0px;
+}
+
+body > div > nav {
+    flex:1 150px;
+    padding-left:20px;
+    padding-top:20px;
+    background-color:#ccc;
+}
+
+body > div > nav a {
+    text-decoration:none;
+    color:black;
+    display:block;
+    margin-top:5px;
+    padding-left:10px;
+    padding-top:10px;
+    padding-bottom:10px;
+    transition: all 0.1s ease-out;
+}
+
+body > div > nav a:hover {
+    background-color: #eee;
+    transition: all 0.1s ease-out;
+    transform: translate(5px, 0px);
+}
+
+ul {
+    list-style-type:none;
+    padding-left:10px;
+    margin:0px;
+    padding-bottom:5px;
+}
+
+li {
+    padding-left:10px;
+}
+
+body > div > main {
+    flex:3 500px;
+    padding:20px;
+    min-height:400px;
+    background-color:#FFF;
+}
+
+body > footer {
+    text-align:center;
+    background-color:#ddd;
+    padding:6px;
+    font-size:12px;
+}

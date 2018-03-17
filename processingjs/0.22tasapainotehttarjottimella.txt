@@ -1,0 +1,1404 @@
+//newer version working only in browser
+/* @pjs pauseOnBlur="true"; */ //inside javascript
+void setup() {
+    size(500,400);
+    background(200); 
+    strokeWeight(1);
+    textAlign(CENTER,CENTER);
+    readInput(scaler1); //this will be done after the below setup things
+}
+
+//setup initial input here
+String equation = "2=1+1+4";
+int equality = equation.indexOf("=");
+
+//PVector scaleSize = new PVector(400,400);
+int draggedIndex = -1;
+int totalMass = 0;
+int diameterMultiplier = 32;
+int doubleClickTimer = 0;
+Scaler scaler1 = new Scaler(250,0,500);
+int amountOfBalls = 0;
+int powerSaveTriggerLimit = int(1 + amountOfBalls*amountOfBalls/66);
+ArrayList <Ball> balls = new ArrayList<Ball>();
+BallTray mouseTray = new BallTray(6,80, new PVector(10,10),false);
+PVector totalMomentum = new PVector(1,1);
+float powerSaveTrigger = 5;
+int powerSaveTimer = 0;
+float sumOfX = 0;
+float sumOfInt = 0;
+float infoButtonAnimation = 0;
+
+// menu system for doing exersices
+boolean menu = true;
+boolean runWorldOnce = false;
+boolean loadNewInput = false;
+int menuframe = -1;
+int animationFrame = 0;
+boolean groundCol = true;
+Ball demoBall = new Ball(6, 350, 250, false);
+// the menuframe and menu will pop up when a certain target has been reached
+// the target will be written down as a function that will return true if the goal is reached
+// each goal will be tied to menuframe integer, menu will show up only if menu is true
+
+void draw() {  
+    background(255);textSize(20);
+    
+    if (int(powerSaveTrigger) > powerSaveTriggerLimit) {powerSaveTimer = 0;} else {powerSaveTimer++;}
+
+    if ( !menu && (int(powerSaveTrigger) > powerSaveTriggerLimit || powerSaveTimer < 80) || !runWorldOnce ) {
+	    powerSaveTrigger = 0;
+	    scaler1.right.m = 0; //reset the mass calculator
+	    scaler1.left.m = 0;
+    
+	    for (int i = 0 ; i < balls.size(); i++) { 
+	        Ball ball1 = balls.get(i);
+	        ball1.groundCollision();
+	        checkBallToScaler(ball1, scaler1);
+			if (ball1.p.y < 400 + ball1.diameter) {
+	        	powerSaveTrigger += abs(ball1.v.x)*1.5 + abs(ball1.v.y)*1.5;
+			}
+	        for (int j = i - 1; j >= 0 ; j--) { 
+	            Ball ball2 = balls.get(j);
+	            float collisionDistance = (ball1.diameter+ball2.diameter)/2;
+	            if ( abs(ball1.p.x - ball2.p.x ) < collisionDistance && //Ball to ball collisions
+	                 abs(ball1.p.y - ball2.p.y) < collisionDistance  ) {
+	            	float distance = dist(ball1.p.x,ball1.p.y,ball2.p.x,ball2.p.y);
+	                if (distance < collisionDistance) {
+	                        collisionBallToBall(ball1,ball2);
+	                } 
+	            }
+	        }
+	        ball1.update();
+	    }
+    
+    	scaler1.update();
+		runWorldOnce = true;
+
+		
+    } //powersave ends here is everything that updates the world
+
+
+
+	//check if game target is fulfilled and there is need to go back to menu
+	//	
+
+	//display functions are in order here:
+    for (int i = balls.size()-1; i >= 0; i--) {
+        Ball ball = balls.get(i);
+        if ( ball.balloon ) { //this needs to be in background
+	    	plotString(ball.stringEnd,ball.p,ball.diameter*2);
+        }
+    }
+    scaler1.display();
+    for (int i = balls.size()-1; i >= 0; i--) {
+        Ball ball = balls.get(i);
+        ball.display();
+    }
+
+	mouseTray.display();
+    mouseTray.update();
+
+    if (menu){
+		noStroke();
+		fill(255,255,255,240);
+		rect(0,0,500,400); //draw menu borders
+
+		//menu interactions are in the mouseClicked function
+		drawMenuFrame(menuframe);
+
+        stroke(0);
+        strokeWeight(2);
+		//menu hovering on top of everything
+	} else {
+		drawInfoButton(4,4);
+	}
+	checkIfFinished(menuframe);
+    updateDoubleClickTimer();
+}
+
+void drawInfoButton(int x, int y){
+	if ( infoButtonAnimation > 2*PI ) {
+		if ( powerSaveTimer > 500 ) { //waiting time until the info button starts blinking
+			infoButtonAnimation = 0;
+		}
+	} else {
+		infoButtonAnimation += 0.1;
+	}
+	int colornumber = int(255/2 + 255/4*cos(infoButtonAnimation));
+    stroke(colornumber);
+	fill(255);
+    rect(x, y+2*cos(infoButtonAnimation), 20, 22-2*cos(infoButtonAnimation));
+    fill(colornumber);
+	textSize(16);
+    text("i",10+x,10+y+2*cos(infoButtonAnimation));
+	stroke(0);
+}
+
+void drawDragDemo(){
+    int mousePositionX = int(250+100*cos(animationFrame*PI/100)); // dragging happens at 0-200 and 300-500
+	int mousePositionY = int(270-20*abs(sin(animationFrame*PI/100)));
+    if ( animationFrame >= 300) {
+		mousePositionX = int(250-100*cos(animationFrame*PI/100));
+	}
+    if ( (animationFrame > 200  && animationFrame < 300) || (animationFrame > 500  && animationFrame < 600)) {
+		mousePositionX = 350;
+		mousePositionY = 270;
+	} 
+	if ( animationFrame < 100 || (animationFrame > 400 && animationFrame < 500)) {
+		demoBall.p.x = mousePositionX;
+		demoBall.p.y = mousePositionY;
+	}
+	demoBall.display();
+	drawMouse(mousePositionX,mousePositionY);
+    animationFrame++;
+    if (animationFrame >= 600) {animationFrame = 0;}
+}
+
+void drawMouse(x,y){
+    stroke(255);
+	fill(255);
+	pushMatrix();
+    translate(x,y);
+    rotate(-PI/7);
+    triangle(0,0,-6,13,6,13);
+    rect(-2,13,4,6);
+    stroke(0);
+    line(0,0,-6,13);
+    line(0,0,6,13);
+    line(-6,13,-2,13);
+    line(6,13,2,13);
+    line(2,13,2,17);
+    line(-2,13,-2,17);
+    line(-2,19,2,19);
+    popMatrix();
+}
+
+void checkIfFinished(int level) {
+	switch(level) {
+		case 1:
+			if ( powerSaveTimer > 80 && scaler1.left.m == scaler1.right.m && scaler1.right.m > 0 ) {
+				menuframe++;
+				menu = true;
+			}
+		case 3:
+			if ( powerSaveTimer > 80 && scaler1.left.m == 0 && scaler1.right.m == 0 ) {
+				menuframe++;
+				menu = true;
+			}
+		case 5:
+			if ( powerSaveTimer > 80 && scaler1.left.m == 7 && scaler1.right.m == 7 ) {
+				menuframe++;
+				menu = true;
+			}
+		break;
+		case 7:
+			if ( powerSaveTimer > 80 && ( scaler1.left.m < 0 || scaler1.right.m < 0 ) ) {
+				menuframe++;
+				menu = true;
+			}
+		break;
+	}
+}
+
+void drawMenuFrame(char frame) {
+	fill(0);
+	switch(frame) {
+		case -1:
+			textSize(40);
+			text("Aloita",250,190);
+		break;
+		case 0:
+			textSize(40);
+			text("Tehtävä 1:",250,100);
+			textSize(20);
+			text("Siirrä palloja niin, että vaaka on tasapainossa.",width/2,140);
+			text("Palloja voi raahata hiiren kursorilla.",width/2,170);
+			text("Klikkaa ruutua aloittaaksesi...",width/2,200);
+			drawDragDemo();
+		break;
+		case 2:
+			textSize(40);
+			text("Hyvä! Tehtävä 2:",250,100);
+			textSize(20);
+			text("Voit poistaa kaikki pallot raahaamalla ne vaa'an",width/2,140);
+			text("alapuolelle, jolloin ne tippuvat pois ruudusta.",width/2,170);
+			groundCol = false;
+		break;
+		case 4:
+			textSize(40);
+			text("Hienoa! Tehtävä 3:",250,100);
+			textSize(20);
+			text("Lisää palloja tuplaklikkaamalla tyhjää koria.",width/2,140);
+			text("Lisää palloja niin paljon, että saat oikealle ja vasemmalle",width/2,170);
+			text("kokonaispainoksi 7 kumpaankin koriin.",width/2,200);
+			deleteAllBalls(); ///LISÄÄÄ
+			scaler1.right.info = true;
+			scaler1.left.info = true;
+		break;
+		case 6:
+			textSize(40);
+			text("Loistavaa! Tehtävä 4:",250,100);
+			textSize(20);
+			text("Saat muodostettua negatiivisia lukuja",width/2,140);
+			text("pitelemällä palloa kiinni punaisessa tai",width/2,170);
+			text("sinisessä nupissa.",width/2,200);
+			scaler1.info = true;
+			scaler1.right.info = false;
+			scaler1.left.info = false;
+		break;
+		case 8:
+			textSize(40);
+			text("Erinomaista",250,100);
+			textSize(20);
+			text("Nyt kaik' on tehty.",width/2,140);
+			text("Jatkossa lisää vaakatehtäviä.",width/2,170);
+			text("",width/2,200);
+			scaler1.info = false;
+			equation = "7=2x+1+4";
+			loadNewInput = true;
+		break;
+		default: //=not a menu at all
+			menu = false;
+			powerSaveTimer = 0;
+		break;
+	}
+}
+
+Boolean checkIfNumber(char number) { // for javascript version: case "0"... for processing 3.3 it needs to be case ‘0’
+  boolean answer = false;
+  switch(number) {
+    case "0":
+      answer = true;
+      break;
+    case "1":
+      answer = true;
+      break;
+    case "2":
+      answer = true;
+      break;
+    case "3":
+      answer = true;
+      break;
+    case "4":
+      answer = true;
+      break;
+    case "5":
+      answer = true;
+      break;
+    case "6":
+      answer = true;
+      break;
+    case "7":
+      answer = true;
+      break;
+    case "8":
+      answer = true;
+      break;
+    case "9":
+      answer = true;
+      break;
+    default:
+      answer = false;
+      break;
+  }
+  return answer;
+}
+
+Boolean checkIfX(char x) { // for javascript version: case "x"...
+  boolean answer = false;
+  switch(x) {
+    case "x":
+      answer = true;
+      break;
+    default:
+      answer = false;
+      break;
+  }
+  return answer;
+}
+
+Boolean checkIfMinus(int charposition, string sample) { 
+  boolean answer = false;
+	int num = charposition;
+	while ( num > 0) {
+		switch(sample.charAt(num)) {
+			case "-":
+				num = 0;
+				answer = true;
+				break;
+			case "+":
+				num = 0;
+				answer = false;
+				break;
+			case "=":
+				num = 0;
+				answer = false;
+				break;
+			default:
+				num--;
+				break;
+		}
+	}
+  return answer;
+}
+
+void deleteAllBalls() {
+	for (int i = balls.size()-1; i >= 0; i--) {
+		balls.remove(i);
+	}
+}
+
+class BallTray {
+    PVector p;
+    boolean xBall;
+    int diameter;
+    int ballDiameterMultiplier;
+    int bornTimer;
+    int dyingTimer;
+    int animationScale;
+    ArrayList <Integer> ballArray = new ArrayList<Integer>();
+    BallTray(int ballArraySize, int size, PVector position, boolean xBallIsLast) {
+        for (int i = 1; i <= ballArraySize - 1; i++) {
+			ballArray.add(i);
+        }
+		if (xBallIsLast ) {
+			ballArray.add(0);
+		} else {
+			ballArray.add(ballArraySize);
+		}
+        diameter = size;
+        p = new PVector(position.x,position.y);
+        ballDiameterMultiplier = 1;
+        bornTimer = 0;    // 
+        animationScale = 10;
+        dyingTimer = 0; // animationScale + 1 = its alive
+        xBall = xBallIsLast;
+    }
+    void display() {
+      if (dyingTimer != 0 && bornTimer != 0 ) {
+        fill(#a5a5a5);
+        pushMatrix();
+        translate(p.x,p.y);
+        if (dyingTimer > animationScale) {
+            scale(float(bornTimer)/animationScale);
+        } else {
+            scale(float(dyingTimer)/animationScale);
+        }
+        stroke(0);
+        
+        for (int i = 0; i < ballArray.size(); i++) {
+            int ballnumber = ballArray.get(i);
+            float alpha = i*2*PI/(ballArray.size())-PI/2;
+            float x = cos(alpha)*diameter/2;
+            float y = sin(alpha)*diameter/2;
+            if ( ballnumber != 0 ) {
+                fill(colorSwitch(ballnumber));
+                ellipse(x,y,diameter/2,diameter/2);
+                fill(0);
+                textSize(15);
+                text(ballnumber,x,y);
+                fill(#a5a5a5);
+            } else {
+                fill(0);
+                ellipse(x,y,diameter/2,diameter/2);
+                fill(255);
+                textSize(15);
+                text("x",x,y);
+                fill(#a5a5a5);
+            }
+        }
+        popMatrix();
+        scale(1);
+      }
+    }
+    int checkCollision(int x, int y) {
+        for (int i = ballArray.size() - 1; i >= 0; i--) {
+            float alpha = i*2*PI/(ballArray.size())-PI/2;
+            float ballx = p.x + cos(alpha)*diameter/2;
+            float bally = p.y + sin(alpha)*diameter/2;
+            int distance = int(dist(x,y,ballx,bally));
+            if ( distance < diameter/4 ) {
+                return ballArray.get(i);
+            }
+        }
+        return -1;
+    }
+    void update() {
+        if ( dyingTimer < animationScale + 1 && dyingTimer > 0) {
+            dyingTimer--;
+        }
+        if ( bornTimer >= 0 && bornTimer <= animationScale) {
+            bornTimer++;
+        }
+        if (dist(mouseX,mouseY,p.x,p.y) > diameter && dyingTimer == animationScale + 1) {
+            dyingTimer = animationScale;
+        }
+    }
+}
+
+void readInput(Scaler target) {				//char-indexes: "...jik..." 
+	equation = " " + equation + " "; //lets add some spaces to prevent index-errors
+    for (int i = equation.length()-1; i > 0; i--) { // loop goes until we are at the index 1 ( = first letter )
+        char ichar = equation.charAt(i);
+        int side = 0;
+        if (i > equality) { side = 1; } else { side = -1; } //check which side of the equation
+		int multiplier = 1;
+		if (checkIfMinus(i,equation)) {multiplier = -1;} else {multiplier = 1;}// check if the number is negative
+		
+        if (checkIfX(ichar)) { //check if its a singular xBall
+        	char jchar = equation.charAt(i-1);
+            if ( !checkIfNumber(jchar)) {
+                balls.add(new Ball(1, target.p.x + i + target.w/4*side,target.p.y + target.h/2,true));
+				if (multiplier < 0 ) {
+					Ball newbie = balls.get(balls.size()-1);
+						if ( side > 0 ) {
+							newbie.stringEnd = new PVector(target.left.p.x,target.left.p.y);
+							newbie.p = new PVector(target.left.p.x+i,target.left.p.y);
+						} else {
+							newbie.stringEnd = new PVector(target.right.p.x,target.right.p.y);
+							newbie.p = new PVector(target.right.p.x+i,target.right.p.y);
+						}
+						newbie.balloon = true;
+				}
+                amountOfBalls++;
+                sumOfX += 1*-side*multiplier;
+       		}
+        }
+        if (checkIfNumber(ichar)) { //check it if its multiunitball
+            char jchar = equation.charAt(i-1);
+            if (checkIfNumber(jchar)) {
+                int j = i-1;
+                balls.add(new Ball(int(ichar) + 10*(int(jchar)  ), target.p.x + i + target.w/4*side,target.p.y + target.h/2,false));
+				if (multiplier < 0 ) {
+					Ball newbie = balls.get(balls.size()-1);
+						if ( side > 0 ) {
+							newbie.stringEnd = new PVector(target.left.p.x,target.left.p.y);
+							newbie.p = new PVector(target.left.p.x+i,target.left.p.y);
+						} else {
+							newbie.stringEnd = new PVector(target.right.p.x,target.right.p.y);
+							newbie.p = new PVector(target.right.p.x+i,target.right.p.y);
+						}
+						newbie.balloon = true;
+				}
+                amountOfBalls++;
+                sumOfInt += ( int(jchar)*10 + int(ichar) )*side*multiplier;
+                i--;
+            } else {
+            	char kchar = equation.charAt(i+1);
+                if (!checkIfNumber(kchar)) {
+                	if (checkIfX(kchar)) {
+                    	balls.add(new Ball(int(ichar)  , target.p.x + i + target.w/4*side,target.p.y + target.h/2,true));
+						if (multiplier < 0 ) {
+							Ball newbie = balls.get(balls.size()-1);
+							if ( side > 0 ) {
+								newbie.stringEnd = new PVector(target.left.p.x,target.left.p.y);
+								newbie.p = new PVector(target.left.p.x+i,target.left.p.y);
+							} else {
+								newbie.stringEnd = new PVector(target.right.p.x,target.right.p.y);
+								newbie.p = new PVector(target.right.p.x+i,target.right.p.y);
+							}
+							newbie.balloon = true;
+						}
+                    	amountOfBalls++;
+                    	sumOfX += int(ichar)*-side*multiplier;
+                	} else {
+                    	balls.add(new Ball(int(ichar)  , target.p.x + i + target.w/4*side,target.p.y + target.h/2,false));
+						if (multiplier < 0 ) {
+							Ball newbie = balls.get(balls.size()-1);
+							if ( side > 0 ) {
+								newbie.stringEnd = new PVector(target.left.p.x,target.left.p.y);
+								newbie.p = new PVector(target.left.p.x+i,target.left.p.y);
+							} else {
+								newbie.stringEnd = new PVector(target.right.p.x,target.right.p.y);
+								newbie.p = new PVector(target.right.p.x+i,target.right.p.y);
+							}
+							newbie.balloon = true;
+						}
+                        amountOfBalls++;
+                        sumOfInt += int(ichar)*side*multiplier;
+                	}
+            	}
+        	}
+        }
+    }
+    float xVal = sumOfInt/sumOfX;
+    for (int i = 0; i <balls.size();i++) {
+        Ball ball = balls.get(i);
+        if (ball.xball) {
+            ball.xValue = xVal;
+        }
+    }
+}
+
+void checkBallToScaler( Ball ball, Scaler scaler ) {
+    if (abs(ball.v.x) + abs(ball.v.y) > 6) {
+          ball.contained = false;
+    }
+    checkBallToContainer(ball,scaler.right);
+    checkBallToContainer(ball,scaler.left);
+}
+
+void checkBallToContainer( Ball b, Container c ) {
+	//check stringCollision for balloons
+	float knottingDistance = b.diameter/2;
+	
+	if ( b.dragged && b.singularity > 100 ) {
+		if ( dist(b.p.x,b.p.y,c.p.x,c.p.y) < knottingDistance ) {
+			b.balloon = true;
+			b.stringEnd = new PVector(c.p.x,c.p.y); 
+		}
+	}
+	if ( b.balloon ) {
+		float stringEndDistance = dist(b.stringEnd.x, b.stringEnd.y,c.p.x,c.p.y); 
+		float stringBalloon = dist(b.p.x, b.p.y,c.p.x,c.p.y);
+		if ( stringEndDistance < c.radius/2) {
+			b.stringEnd = new PVector(c.p.x,c.p.y); 
+			if (b.xball) {
+                 c.m -= b.m*b.xValue;              //summing up all the balls
+            } else {c.m -= b.m;}
+		}
+	}
+	
+	//check normal collision
+    float collisionDistance = c.radius + b.diameter/4; //collision distance is from the middle of the ball
+    if ( abs(b.p.x - c.cup.x) < collisionDistance - c.radius*0.2 &&   //rectangular collision-check
+         b.p.y - c.cup.y < collisionDistance) {
+         float distance = dist(b.p.x, b.p.y,c.cup.x,c.cup.y);
+         if ( distance < collisionDistance ) {                  //radial collision-check
+             float freeDistance = c.radius - b.diameter/2;
+             if (distance > freeDistance) {
+             //   float collisionAngle = tan((b.p.x - c.cup.x)/(b.p.y - c.cup.y));
+	             if (  c.cup.y < b.p.y) {
+                    collisionBallToContainer(b,c);
+                    b.v.limit(4); //prevents balls escape
+                    b.contained = true;
+                 }
+             }
+             if (b.contained == true) {
+                 if (b.xball) {
+                 c.m += b.m*b.xValue;              //summing up all the balls
+                 } else {c.m += b.m;}
+             }
+        } 
+    }
+}
+
+void collisionBallToContainer(Ball a, Container c) {
+    float dota;
+    float dotc;
+    float distance = dist(a.p.x,a.p.y,c.cup.x,c.cup.y);
+    float collisionDistance = c.radius + a.diameter/4;
+    float correction = collisionDistance - a.diameter*3/4 - distance;
+    
+    a.vdot.sub(a.p);
+    a.vdot.add(c.cup);
+    dota = a.v.dot(a.vdot)/a.vdot.mag();
+    a.vdot.normalize();
+            a.pc.set(a.vdot);
+            a.pc.mult(-correction);
+            a.p.add(a.pc);
+    c.vdot.sub(c.cup);
+    c.vdot.add(a.p);
+    dotc = c.v.dot(c.vdot)/c.vdot.mag();
+    
+//  if (-dota + dotc > 0) {
+        float elasticity = ( a.elasticity + c.elasticity ) / 2;
+        a.u.set(a.vdot);
+        a.vdot.mult(dota);
+        a.u.mult(elasticity*(-dota-2*dotc));
+        a.u.add(a.v);
+        a.u.sub(a.vdot);
+        
+        a.v.set(a.u);
+//  }
+
+    if (abs(dotc-dota) < 1) {      //adding some friction to prevent swinging forever
+        a.v.mult((elasticity+5)/6);
+    }
+    dota = 0;
+//    a.u.mult(0);
+    a.vdot.mult(0);
+}
+
+void collisionBallToBall(Ball a, Ball b) {
+    float dota;
+    float dotb;
+    float distance = dist(a.p.x,a.p.y,b.p.x,b.p.y);
+    float collisionDistance = (a.diameter+b.diameter)/2;
+    float correction = collisionDistance - distance ;
+
+    a.vdot.sub(a.p);
+    a.vdot.add(b.p);
+    dota = a.v.dot(a.vdot)/a.vdot.mag();
+    a.vdot.normalize();
+            a.pc.set(a.vdot); //position correction
+            a.pc.mult(-1*correction*((a.m*a.xValue)/(a.m*a.xValue+b.m*b.xValue)));
+            a.p.add(a.pc); //return corrected position
+
+
+    b.vdot.sub(b.p);
+    b.vdot.add(a.p);
+    dotb = b.v.dot(b.vdot)/b.vdot.mag();
+    b.vdot.normalize();
+            b.pc.set(b.vdot); //position correction
+            b.pc.mult(-1*correction*(b.m*a.xValue/(a.m*a.xValue*a.xValue+b.m*b.xValue)));
+            b.p.add(b.pc); //return corrected position
+
+
+    if ( dotb + dota > 0) { //should be > 0 
+        float elasticity = ( a.elasticity + b.elasticity ) / 2;
+        
+        a.u.set(a.vdot);
+        a.vdot.mult(dota);
+        a.u.mult(elasticity*(dota*(a.m*a.xValue - b.m*b.xValue) - 2*b.m*b.xValue*dotb)/(a.m*a.xValue + b.m*b.xValue));
+        a.u.add(a.v);
+        a.u.sub(a.vdot);
+    
+
+        b.u.set(b.vdot);
+        b.vdot.mult(dotb);
+        b.u.mult(elasticity*(dotb*(b.m*b.xValue - a.m*a.xValue) - 2*a.m*a.xValue*dota)/(b.m*b.xValue + a.m*a.xValue));
+        b.u.add(b.v);
+        b.u.sub(b.vdot);
+        
+        //return new momentum
+        a.v.set(a.u);
+        b.v.set(b.u);
+    }
+    //reset
+    dota = 0;
+    a.u.mult(0);
+    a.vdot.mult(0);
+    dotb = 0;
+    b.u.mult(0);
+    b.vdot.mult(0);
+    
+    if (a.contained){
+        b.contained = true;
+    }
+    if (b.contained) {
+        a.contained = true;
+    }
+}
+
+void plotString(PVector start, PVector end, float stringLength) {
+	stroke(200);
+	strokeWeight(1);
+    float distance = dist(start.x,start.y,end.x,end.y);
+    float stringLeft = stringLength - distance;
+    if ( stringLeft > 0) {
+    int knots = 2*2*2*2;
+    float[] y = new float[knots];
+    y[0] = start.y;
+    y[knots] = end.y;
+    y[ ( knots ) / 2 ] = ( y[0] + y[knots]  ) / 2 + stringLeft/2;
+    float[] stringLeftArray = [ 0 , 0.0625 , 0.125 , 0.03125 , 0.25 , 0.015625 , 0.0625 , 0.0078125 , 0.5 , 0.0078125 , 0.0625 , 0.015625 , 0.25 , 0.03125 , 0.125 , 0.0625 , 0];
+    for ( int loops = 0; loops <3 ; loops++ ) {
+        for ( int i = 0; i < y.length; i++ ) {
+            if (y[i] != 0) {
+                for ( int j = i+1; j < y.length; j++) {
+                    if (y[j] != 0) {
+                        int middle = ( i + j )/2;
+                        y[middle] = ( y[i] + y[j] ) / 2 + stringLeft*stringLeftArray[middle]/2;
+                        i = j;
+                    }
+                }
+            }
+        }
+        //stringLeft = stringLeft/2;
+    }
+	
+    for ( int i = 0; i < y.length - 1; i+=1 ) { //balloon will attach itself to the fourth knot, so no need to draw more
+        float lineStartx = start.x + (end.x - start.x)/y.length*i;
+        float lineStarty = y[i];
+        float lineEndx = start.x + (end.x - start.x)/y.length*(i+1);
+        float lineEndy = y[i+1];
+        line(lineStartx,lineStarty, lineEndx,lineEndy);
+    }
+    } else {
+        line(start.x,start.y,end.x,end.y);
+    }
+	stroke(0);
+	strokeWeight(2);
+}
+
+class Ball {
+    PVector p; //position
+    PVector v; //velocity
+    PVector a; //acceleration
+    PVector u; //velocity after collision
+    PVector vdot; 
+    PVector pc; //position correction when overlapping another ball
+    float m; //mass
+    boolean balloon = false;
+    PVector stringOrigin;
+    PVector stringEnd;
+    float xValue; // = 1 if !xball, if this is xball --> x = calculated
+    boolean xball;
+    float elasticity;
+    PVector gravityForce;
+    float diameter;
+    boolean contained = false; 
+    boolean collided = false;// for troubleshooting
+    boolean dragged = false;
+    int singularity;
+    color c;
+    ArrayList <Integer> quarkArray = new ArrayList<Integer>();
+    int naturalQuark;
+    
+    Ball(float mass, float x, float y, boolean isX) {
+        m = mass;
+		stringOrigin = new PVector(250,250);
+		stringEnd = new PVector(250,250); 
+        xball = isX;
+        xValue = 1; //need to calculate this from equation
+        diameter = sqrt(m)*diameterMultiplier;
+        p = new PVector(x,y);
+        v = new PVector(0,0);
+        a = new PVector(0,0);
+        u = new PVector(0,0);
+        vdot = new PVector(0,0);
+        pc = new PVector(0,0);
+        elasticity = 0.6;
+        gravityForce = new PVector(0,m/5); //set the gravityForce to apply normal acceleration
+        naturalQuark = 0;
+        if (int(m) > 10) {  //for now there will be only 10 quarks inside
+            for (int mC = int(m); mC > 10; mC -= 10) {
+                quarkArray.add(8);
+                quarkArray.add(2);
+            }
+        }
+        switch(int(m)%10) { //preset setting for color- and remainder quarks mod 10
+          case 1 :
+            quarkArray.add(1);
+            break;
+          case 2 :
+            quarkArray.add(1);
+            quarkArray.add(1);
+            break;
+          case 3 :
+            quarkArray.add(1);
+            quarkArray.add(2);
+            break;
+          case 4 :
+            quarkArray.add(1);
+            quarkArray.add(3);
+            break;
+          case 5 :
+            quarkArray.add(2);
+            quarkArray.add(3);
+            break;
+          case 6 :
+            quarkArray.add(1);
+            quarkArray.add(2);
+            quarkArray.add(3);
+            break;
+          case 7 :
+            quarkArray.add(1);
+            quarkArray.add(3);
+            quarkArray.add(3);
+            break;
+          case 8 :
+            quarkArray.add(1);
+            quarkArray.add(3);
+            quarkArray.add(4);
+            break;
+          case 9 :
+            quarkArray.add(2);
+            quarkArray.add(3);
+            quarkArray.add(4);
+            break;
+          case 0:
+            quarkArray.add(2);
+            quarkArray.add(3);
+            quarkArray.add(5);
+          break;
+        }
+        naturalQuark = quarkArray.size();
+        pickColor(this);
+    }
+    
+    void display() {
+        stroke(0, 0, 0);
+        if ( xball ) {
+            fill(60,60,60);
+            if ( singularity >= 100 ) { stroke(200); }
+            ellipse(p.x,p.y,diameter,diameter);
+            stroke(0);
+        } else {
+            fill(c);
+            if ( singularity >= 100 ) { stroke(c); }
+            ellipse(p.x,p.y,diameter,diameter);
+            stroke(0);
+        }
+		if ( balloon ) {
+			float distance = dist(stringEnd.x,stringEnd.y,p.x,p.y);
+			float stringLeft = diameter*2 - distance;
+			if (stringLeft < 0) {stringLeft = 0;}
+			stringOrigin = new PVector((p.x*2 + stringEnd.x*2)/4,(p.y*2 + stringEnd.y*2)/4 + stringLeft/2);
+			float stringAngle = 0;
+			if ( p.x > stringOrigin.x ) {
+    	    	 stringAngle = atan((stringOrigin.y - p.y)/(stringOrigin.x - p.x)) + PI;
+    	    } else {
+    	    	stringAngle = atan((stringOrigin.y - p.y)/(stringOrigin.x - p.x));
+    	    }
+			pushMatrix();
+    	 	translate(p.x,p.y);
+    	    rotate(stringAngle-PI/2);
+    	    noStroke();
+    	    triangle(-diameter*4.4/12, diameter*4.1/12, 0, diameter*4/6, diameter*4.4/12, diameter*4.1/12);
+    	    stroke(0);
+    	    if ( singularity >= 100 ) { 
+    	        if (xball) { stroke(60); } else { stroke(c); }
+    	    }
+    	    line(-diameter*4.4/12, diameter*4.1/12, 0, diameter*4/6);
+    	    line( diameter*4.4/12, diameter*4.1/12,0, diameter*4/6);
+    	    triangle(-diameter/24,diameter*17/24, 0,diameter*4/6,diameter/24,diameter*17/24);
+    	    popMatrix();
+
+
+		}
+        if ( collided ) {
+            fill(255,0,0);
+            ellipse(p.x,p.y,diameter,diameter);
+        } 
+        if (quarkArray.size() > naturalQuark && !xball) {
+            for (int i = naturalQuark; i < quarkArray.size(); i++) {
+                float quarkMass = quarkArray.get(i);
+                float quarkDiameter = sqrt(quarkMass)*diameterMultiplier;
+                float mo = m; //make a quick change so that we can use the pickColor method for quark
+                m = quarkMass;
+                color alternativec = c;
+                pickColor(this);
+                fill(lerpColor(alternativec, c, .3));
+                noStroke();
+                ellipse(p.x+sin(quarkMass*2.5+i)*(diameter - quarkDiameter)/2.1,p.y+cos(quarkMass*2.5+i)*(diameter - quarkDiameter)/2.1, quarkDiameter, quarkDiameter);
+                m = mo;
+                pickColor(this);
+                stroke(0);
+            }
+        }
+        fill(0);
+        textSize( diameter / 2 ); //scaling text size according to diameter
+        if (xball) {
+            fill(255);
+            if ( int(m) != 1 ) {
+            text(int(m) + "x",p.x,p.y);
+            } else { text("X",p.x,p.y); }
+        } else {
+            fill(0);
+			if (balloon) {
+	            text("-" + int(m),p.x,p.y);
+			} else {
+				text(int(m),p.x,p.y);
+			}
+        }
+    }
+    
+    void update() {
+        applyForce(gravityForce);
+        v.add(a);    //Galileo's cinematics
+        p.add(v);
+        a.mult(0);
+        
+        if (dragged) {
+            p.x = mouseX;
+            p.y = mouseY;
+            v.x = mouseX - pmouseX;
+            v.y = mouseY - pmouseY;
+            singularity++;
+            if (singularity > 100) {
+                draggedCannibalism(balls);
+                pickColor(this);
+            } 
+            if (abs(v.x) + abs(v.y) > 10) {singularity = 0;}
+            powerSaveTrigger +=1;
+            powerSaveTimer = 0;
+        } 
+
+		if ( balloon ) {
+		    gravityForce = new PVector(0,-m*xValue/17);
+		    float stringDistance = dist(stringEnd.x,stringEnd.y,p.x,p.y);
+		    if ( stringDistance > diameter*1.5 ) {
+	    		PVector stringForce = new PVector(stringEnd.x - p.x,stringEnd.y - p.y);
+				stringForce.normalize();
+				stringForce.mult(m*xValue*(stringDistance - diameter*1.5)/100);
+				applyForce(stringForce);
+
+				if ( stringDistance > diameter*4 && dragged) { //prevents te UI to have too long strings
+					balloon = false;
+				}
+	    	}
+			if ( abs(v.x) + abs(v.y) > 0.1 ) { //drag physics don't work with really small velocities, so that's why
+	    		PVector drag = new PVector(-v.x,-v.y);
+	    		drag.normalize();
+	    		drag.mult(m*xValue*0.04);
+	    		applyForce(drag);
+			}
+		} else {
+			gravityForce = new PVector(0,m*xValue/5);
+		}
+    }
+    
+    void applyForce(PVector force) {
+        PVector f = PVector.div(force,m*xValue);
+         // Newton II
+        a.add(f);
+    }
+    
+    void groundCollision() { 
+        if ( ( p.y > height - diameter/2 ) && ( v.y > 0 ) && groundCol ) { //menuframe that doesn't have ground collition is listed here also
+            p.y = height - diameter/2;
+            v.y *= -elasticity;
+            v.x *= elasticity;
+        }
+		/*if ( ( p.y < diameter/2 ) && ( v.y < 0 ) ) { //No roof
+            p.y = diameter/2;
+            v.y *= -elasticity;
+            v.x *= elasticity;
+        }*/
+        if ( ( p.x > width - diameter/2  ) && ( v.x > 0 ) ) {
+            p.x = width - diameter/2;
+            v.x *= -elasticity;
+        }
+        if ( (      p.x < diameter/2     ) && ( v.x < 0 ) ) {
+            p.x = diameter/2;
+            v.x *= -elasticity;
+        }
+    }
+}
+
+void pickColor(Ball object) {
+	object.c = colorSwitch(object.m);
+}
+
+color colorSwitch(float m) {
+	color c = #000000;
+	switch(int(m)%10) { //set color of the object to match the new mass
+          case 1 :
+            c = #a5a5a5;
+            break;
+          case 2 :
+            c = #ed7d31;
+            break;
+          case 3 :
+            c = #4472c4;
+            break;
+          case 4 :
+            c = #ffc000;
+            break;
+          case 5 :
+            c = #5b9bd5;
+            break;
+          case 6 :
+            c = #70ad47;
+            break;
+          case 7 :
+            c = #19bcbe;
+            break;
+          case 8 :
+            c = #44546a;
+            break;
+          case 9 :
+            c = #954f72;
+            break;
+          default:
+            c = #e7e6e6;
+            break;
+    }
+    if (m > 10) { // make the bigger ones little brighter
+        c = lerpColor(c, color(255), m/100);
+    }
+	return c;
+}
+
+class Container {
+    PVector p;
+    PVector v;
+    PVector cup;
+    PVector vdot;
+    float m;
+    float phi; //alpha = 0 --> points down
+    float omega; // alpha's angular velocity
+    float radius; //container ellipse radius
+    float segmentAngle; //setup the container segment size with radius
+    float elasticity;
+    color c;
+	boolean info;
+    
+    Container(float x, float y, float d, color col) {
+        p     = new PVector(x,y);
+        v     = new PVector(0,0);
+        cup   = new PVector(0,0); //position of the cup-ellipse
+        vdot  = new PVector(0,0);
+        m     = 0; // how many balls are inside
+        phi   = 0;
+        omega = 0;
+        radius = d/2;
+        segmentAngle = PI/5;
+        elasticity = 0.3;
+        c     = col;
+		info = false;
+    }
+    
+    void update(float x, float y) {
+        float oldvx = v.x;
+        float oldvy = v.y;
+      
+        v.x = x - p.x;
+        v.y = y - p.y;
+        
+        float deltax = v.x - oldvx;
+        float deltay = v.y - oldvy;
+      
+        p.x = x;
+        p.y = y;
+        
+        omega += sin(-phi)/100; //normal acceleration
+        omega += deltay*sin(phi)/(radius*2); //moving the scale swings the containers
+        omega += deltax*cos(phi)/(radius*2);
+        omega *= 0.95; //friction
+        phi += omega; //simple kinetics, phi = 0 is down
+        powerSaveTrigger += omega*100;
+        
+        cup.x = x - radius*sin(phi);
+        cup.y = y + radius*cos(phi);
+    }
+
+    void display() {
+        noFill();
+        pushMatrix();                              /*RIGHT VASE*/
+        translate(p.x,p.y);
+        rotate(phi);
+        strokeWeight(1);
+        stroke(200);
+        line(0,0, + radius*4.8/6, + radius*7.8/5);
+        line(0,0, - radius*4.8/6, + radius*7.8/5);
+        strokeWeight(4);
+        stroke(c);
+		if (info) {
+			color lc = lerpColor(c, color(255), 0.85+0.15*cos(infoButtonAnimation));
+			fill(lc);
+		} else {
+			noFill();
+		}
+        arc(0,0 + radius,radius*2,radius*2,+segmentAngle,PI-segmentAngle);
+        stroke(0);
+        strokeWeight(2);
+        popMatrix();    
+        
+        //text(m, p.x, p.y + radius/2);
+    }
+}
+
+class Scaler {
+    PVector p; //position of the equation that will be added later, scale will appear lower
+    float angle; // angle of the balancing rod, 0 = horozontal
+    float targetAngle;
+    float impetus;
+    float h;
+    float w;
+    char  equation;
+    color c;
+    Container right;
+    Container left;
+	boolean info;
+    
+    Scaler(int x, int y,float scalerSize) {
+        p = new PVector(x,y);
+        angle = 0;
+        targetAngle = PI*0.05;
+        impetus = 0;
+        h = scalerSize;
+        w = scalerSize;
+        equation = '=';
+        c = color(0,0,0);
+        float dm = 3.69;
+        left = new Container(p.x + w/dm*cos(angle+0.12),
+                  p.y + h/7 + h/dm*sin(angle+0.12),
+                              (scalerSize)/2, color(0,0,255));
+        right = new Container(p.x - w/dm*cos(angle-0.12),
+                  p.y + h/7 - h/dm*sin(angle-0.12), 
+                              (scalerSize)/2,color(255,0,0));
+		info = false;
+    }
+    
+    void update() {
+        float targetAngleBefore = targetAngle;
+        if (left.m > right.m) {
+            targetAngle = PI*0.04;
+            equation = '<';
+        } 
+        if (left.m < right.m) {
+            targetAngle = -PI*0.04;
+            equation = '>';
+        }
+        if (round(left.m*10) == round(right.m*10)) {
+            targetAngle = 0;
+            equation = '=';
+        }
+        if (targetAngle != targetAngleBefore) {
+            impetus = 30;
+        }
+        
+        if (angle < targetAngle) {    //add a little torque from the mass difference
+            float angleDelta = angle - targetAngle;
+            angle += abs(angleDelta)*(1+abs(left.m -right.m))/(30 + 10*impetus+3*totalMass);
+            powerSaveTrigger += abs(angleDelta*100);
+        } if (angle > targetAngle) {
+            float angleDelta = angle - targetAngle;
+            angle -= abs(angleDelta)*(1+abs(left.m -right.m))/(30 + 10*impetus+3*totalMass);
+            powerSaveTrigger += abs(angleDelta*100);
+        }
+        
+        if ( impetus > 1 ) {impetus--;}
+        
+        float dm = 3.69;
+        right.update(p.x - w/dm*cos(angle-0.12),
+                  p.y + h/7 - h/dm*sin(angle-0.12));
+        left.update(p.x + w/dm*cos(angle+0.12),
+                  p.y + h/7 + h/dm*sin(angle+0.12));
+    }
+    
+    void display() {
+        pushMatrix();                              /* BASE */
+        noFill();
+        translate(p.x,p.y);
+        arc(0, h - h/4.14, w/100, h + h/4.14, -PI, 0); 
+        line(-w/6,h - h/4.14,w/6,h - h/4.14);
+        arc(-w/6,h - h/4.14+h/100,
+            h/50,h/50,
+            -PI,-PI/2);
+        arc(w/6,h - h/4.14+h/100,
+            h/50,h/50,
+            -PI/2,0);
+        line(-w/6-w/100,h - h/4.14+h/100,
+            w/6+w/100,h - h/4.14+h/100);
+        ellipse(0,h/9,w/20,h/20);
+        fill(0);
+        textSize(w/25);
+        text(equation,0,h/9);
+        noFill();
+        popMatrix();
+        
+        right.display();
+        left.display();
+        
+        pushMatrix();                              /* ROD */
+        translate(p.x,p.y+h/7);
+        rotate(angle);
+        fill(left.c);
+		if (info) {
+			float animation = 3*sin(infoButtonAnimation);
+		} else {
+			animation = 0;
+		}
+        ellipse(w/4+w/50,h/28,w/40+animation,h/40+animation);
+        fill(right.c);
+        ellipse(-w/4-w/50,h/28,w/40+animation,h/40+animation);
+        noFill();
+        arc(0,h,
+            w*2,h*2,-PI/2-PI/12,-PI/2+PI/12);
+        popMatrix();
+    }
+}
+
+
+
+/*void mousePressed() {
+    mouseDragged(); 
+}*/
+
+void mousePressed() {
+if (menu) { //dragging doesn't work while in menu
+} else {
+    if (draggedIndex == -1){
+        int i = balls.size()-1; 
+        while ( i >= 0) {
+            Ball ball = balls.get(i);
+            if (abs(mouseX-ball.p.x) < ball.diameter/2 && abs(mouseY-ball.p.y) < ball.diameter/2 ) {
+                float distance = dist(mouseX,mouseY,ball.p.x,ball.p.y);
+                if ( distance < ball.diameter/2 ) {
+                ball.dragged = true;
+                powerSaveTrigger +=2;
+                draggedIndex = i;
+                i = 0;
+                }
+
+            }
+            i--;
+        }
+		if (doubleClickTimer == 0) { //single click events when not dragging
+		if (mouseTray.dyingTimer == mouseTray.animationScale + 1) {
+			int createBallNumber = mouseTray.checkCollision(mouseX,mouseY);
+			if ( createBallNumber > -1 ) {
+				if (createBallNumber > 0) {
+					balls.add(new Ball(createBallNumber,mouseX,mouseY,false));
+				} else {
+					balls.add(new Ball(1,mouseX,mouseY,true));
+				}
+				draggedIndex = balls.size() -1;
+				Ball ball = balls.get(draggedIndex);
+        		ball.dragged = true;
+				powerSaveTrigger +=5;
+			}
+		}
+	}
+    } else {
+        Ball ball = balls.get(draggedIndex);
+        ball.dragged = true;
+    }
+//text(draggedIndex,20,20);
+	
+}
+}
+
+void draggedCannibalism(ArrayList <Ball> balls) {
+    for (int i = balls.size() - 1; i >= 0 ; i--) {
+        Ball eater = balls.get(i);
+        if (eater.dragged) {
+            for (int j = balls.size() - 1; j >= 0; j--) {
+                Ball food = balls.get(j);
+                float collisionDistance = (eater.diameter+food.diameter)/2;
+                if (  abs(eater.p.x - food.p.x ) <= collisionDistance && //Ball to ball collisions
+                      abs(eater.p.y - food.p.y) <= collisionDistance  && eater.singularity > 100) {
+                    if (dist(eater.p.x,eater.p.y,food.p.x,food.p.y) <= collisionDistance && eater.xball == food.xball) {
+                        if (j != i && eater.m >= food.m) {
+                            eater.singularity = 75;
+                            if (food.quarkArray.size() == food.naturalQuark) { //Combine only natural food, not food that is cannibal
+                                eater.quarkArray.add(int(food.m));
+                                eater.m = eater.m + food.m;
+                                eater.diameter = sqrt(eater.m)*diameterMultiplier; //this needs to be the same as in the constructor
+                                eater.gravityForce = new PVector(0,eater.m/5);
+                                balls.remove(j);
+                                if ( j < i) { i--; draggedIndex--;}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void mouseReleased() {
+    for ( int i = balls.size()-1; i >= 0; i--) {
+        Ball ball = balls.get(i);
+        ball.dragged = false;
+        ball.contained = false;
+        ball.singularity = 0;
+    }
+    draggedIndex = -1;
+    float xVal = sumOfInt/sumOfX;
+    for (int i = 0; i <balls.size();i++) {
+    	Ball ball = balls.get(i);
+    	if (ball.xball) {
+        	ball.xValue = xVal;
+    	}
+	}
+}
+
+void updateDoubleClickTimer() {
+    if ( doubleClickTimer > 0) {
+        doubleClickTimer--; 
+    }
+}
+
+void mouseClicked() {
+if (menu) {
+	menuframe++;
+	helpAnimation = 0;
+	if (loadNewInput) {
+		equality = equation.indexOf("=");
+		sumOfX = 0;
+		sumOfInt = 0;
+		deleteAllBalls();
+		readInput(scaler1);
+		if ( sumOfX != 0 ) {
+			mouseTray = new BallTray(6,80, new PVector(10,10),true)
+		}
+		loadNewInput = false;
+	}
+} else {
+  //text(doubleClickTimer,10,10);
+    if (doubleClickTimer > 0){
+		ballsTouched = 0;
+        for (int i = balls.size()-1; i >= 0;i--) {
+            Ball ball = balls.get(i);
+				//inherits xball and stringEnd
+            boolean xBall = ball.xball;
+			PVector stringEnd = new PVector(ball.stringEnd.x,ball.stringEnd.y);
+            if (abs(mouseX-ball.p.x) < ball.diameter/2 && abs(mouseY-ball.p.y) < ball.diameter/2 ) {
+				ballsTouched++;
+                if (ball.quarkArray.size() > ball.naturalQuark) {
+                    for (int q = ball.naturalQuark; q < ball.quarkArray.size(); q++) {
+                        float quarkMass = ball.quarkArray.get(q);
+                        float quarkDiameter = sqrt(quarkMass)*diameterMultiplier;
+                        balls.add(new Ball(ball.quarkArray.get(q),ball.p.x+sin(quarkMass*2.5+q)*(ball.diameter - quarkDiameter)/2.1,
+																  ball.p.y+cos(quarkMass*2.5+q)*(ball.diameter - quarkDiameter)/2.1,xBall));
+							Ball child = balls.get(balls.size()-1);
+							child.stringEnd = new PVector(stringEnd.x,stringEnd.y);
+							child.balloon = ball.balloon;
+                    }
+                    int sumNatural = 0;
+                    for (int n = 0; n < ball.naturalQuark;n++) {
+                        sumNatural += ball.quarkArray.get(n);
+                    }
+                    balls.add(new Ball(sumNatural,ball.p.x,ball.p.y,xBall));
+						Ball child = balls.get(balls.size()-1);
+						child.stringEnd = new PVector(stringEnd.x,stringEnd.y);
+						child.balloon = ball.balloon;
+                } else {
+                    for (int q = 0; q < ball.quarkArray.size(); q++) {
+                        balls.add(new Ball(ball.quarkArray.get(q),ball.p.x + random(-5,5),ball.p.y + random(-5,5),xBall));
+							Ball child = balls.get(balls.size()-1);
+							child.stringEnd = new PVector(stringEnd.x,stringEnd.y);
+							child.balloon = ball.balloon;
+                    }
+                }
+                
+                balls.remove(i);
+                if ( draggedIndex > i) { i--; draggedIndex--;} //prevent index-errors when removing
+                //i = 0;
+            }
+        }
+        float xVal = sumOfInt/sumOfX;
+        for (int i = 0; i <balls.size();i++) {
+            Ball ball = balls.get(i);
+            if (ball.xball) {
+                ball.xValue = xVal;
+        	}
+		}
+		if (ballsTouched == 0) {
+			if (dist(mouseX,mouseY,mouseTray.p.x,mouseTray.p.y) > mouseTray.diameter || mouseTray.dyingTimer < mouseTray.animationScale/2) {
+        		mouseTray.p.x = mouseX;
+        		mouseTray.p.y = mouseY;
+				if (mouseTray.p.y < mouseTray.diameter/2) {
+					mouseTray.p.y = mouseTray.diameter/2;
+				}
+				if (mouseTray.p.x < mouseTray.diameter/2) {
+					mouseTray.p.x = mouseTray.diameter/2;
+				}
+				if (mouseTray.p.y > height - mouseTray.diameter) {
+					mouseTray.p.y = height - mouseTray.diameter;
+				}
+				if (mouseTray.p.x > width - mouseTray.diameter/2) {
+					mouseTray.p.x = width - mouseTray.diameter/2;
+				}
+        		mouseTray.bornTimer = 0;
+        		mouseTray.dyingTimer = mouseTray.animationScale + 1;
+    		}
+		}
+    }
+
+
+
+    doubleClickTimer = 25; //how long doubleClick should be waited
+
+	if (mouseX < 24 && mouseX > 4 && mouseY < 24 && mouseY > 4) {
+		menuframe--;
+		menu = true;
+	} 
+}
+}

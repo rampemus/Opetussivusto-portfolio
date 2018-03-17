@@ -1,0 +1,48 @@
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>Esimerkki ulkoasusta</title>
+        <link rel="stylesheet" type="text/css" href="stylesheet.css">
+        <script src="resources/processing.min.js" type="text/javascript"></script>
+        <script src="resources/jquery.js" type="text/javascript"></script>
+        <script async src="resources/MathJax/MathJax.js?config=default" type="text/javascript"></script>
+        <script>
+            $(document).ready(function(){
+                $('header').load("header.html");
+                $('nav').load("nav.html",function(){
+                    $('#templatediv').load('navtemplate.html');
+                });
+                $('footer').load("footer.html");
+            });
+        </script>
+        <style>
+            #template {
+                background-color: white;
+            }
+            
+            #templatediv {
+                background: #DDD;
+            }
+            
+            main {
+                border-top: 10px solid #FFDDDD;
+            }
+        </style>
+    </head>
+    <body>
+        <header></header>
+        <div>
+        <nav></nav>
+            <main><h1>Aloita otsikolla</h1>
+            <p>Esimerkkisivu mitä kopioidaan eteenpäin</p>
+            <p>Esimerkki appletti joka pyörii:</p>
+            <canvas id="esimerkkitehtävä" data-processing-sources="processingjs/animaatioitatarjottimella.txt" type="text/processingjs"></canvas>
+            <p>Ja sitten vielä joku kaava tähän alapuolelle, että näkyy kaikki erilaiset mahdolliset objektimuodot joita voidaan lisätä:</p>
+            <p>Jos $x$ on reaaliluku, löytyy polynomille \(ax^2 + bx + c = 0\) enintään kaksi reaalijuurta, joiden arvot ovat: 
+                        $$x = {-b \pm \sqrt{b^2-4ac} \over 2a}$$
+                Teksti jatkuu sitten normaalilla sisennyksellä?</p>
+            </main>
+        </div>
+        <footer></footer>
+    </body>
+</html>
