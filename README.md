@@ -10,4 +10,4 @@ Once static server is setup, go to address:
 
 `http://localhost:<PORT>/yhtalo11.html`
 
-Assuming that everything is put together in a local server and <PORT> is your port number.
+Assuming that everything is put together in a local server and \<PORT\> is your port number.
